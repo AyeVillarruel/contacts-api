@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: contacts_mysql
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: contactsdb
+      MYSQL_USER: aye
+      MYSQL_PASSWORD: devpass
+      MYSQL_ROOT_PASSWORD: rootpass
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: always
+
+  api:
+    build: .
+    container_name: contacts_api
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:

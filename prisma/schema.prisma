@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password      String
+  name          String
+  contacts      Contact[]
+  notifications Notification[]
+  ContactLog    ContactLog[]
+}
+
+model Contact {
+  id             String         @id @default(uuid())
+  name           String
+  email          String
+  birthdate      DateTime
+  phone_personal String
+  phone_work     String?
+  company        String
+  profile_image  String?
+  city           String
+  province       String
+  is_favorite    Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id])
+  logs           ContactLog[]
+  deletedAt      DateTime?
+  notifications  Notification[]
+}
+
+model ContactLog {
+  id        String   @id @default(uuid())
+  action    String
+  field     String?
+  oldValue  String?
+  newValue  String?
+  timestamp DateTime @default(now())
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  message   String
+  read      Boolean   @default(false)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  contactId String
+  contact   Contact   @relation(fields: [contactId], references: [id])
+}
