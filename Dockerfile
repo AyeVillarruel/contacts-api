@@ -1,8 +1,10 @@
-FROM node:18
+FROM node:23-slim
 
 WORKDIR /app
 
 COPY package*.json ./
+
+COPY test/files ./test/files
 
 RUN npm install
 
@@ -12,7 +14,4 @@ RUN npm run build
 
 EXPOSE 3001
 
-CMD ["node", "dist/main"]
-
-RUN echo "BUCKET: $AWS_BUCKET_NAME"
-
+CMD ["npm", "run", "start:prod"]

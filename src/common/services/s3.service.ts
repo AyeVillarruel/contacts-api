@@ -36,26 +36,17 @@ import {
     }
   
     async uploadFile(file: Express.Multer.File): Promise<string> {
-
-      try {
-        const fileExt = path.extname(file.originalname);
-        const fileName = `${uuid()}${fileExt}`;
-  
-        const uploadResult = await this.s3
-          .upload({
-            Bucket: this.bucket,
-            Key: fileName,
-            Body: file.buffer,
-            ContentType: file.mimetype,
-          })
-          .promise();
-  
-        return uploadResult.Location;
-      } catch (error) {
-        this.logger.error('Failed to upload file to S3', error);
-        throw new InternalServerErrorException('Error uploading file');
+        const fileName = `${uuid()}${path.extname(file.originalname)}`;
+        const uploadResult = await this.s3.upload({
+          Bucket: this.bucket,
+          Key: fileName,
+          Body: file.buffer,
+          ContentType: file.mimetype,
+        }).promise();
+      
+        return uploadResult.Location; 
       }
-    }
+      
   
     async deleteFile(fileKey: string): Promise<void> {
       try {

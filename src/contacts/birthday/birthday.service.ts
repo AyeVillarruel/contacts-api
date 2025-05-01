@@ -15,8 +15,13 @@ export class BirthdayCheckService {
   @Cron(CronExpression.EVERY_DAY_AT_9AM)
   async handleBirthdayCheck() {
     this.logger.log('🔔 Running birthday check...');
-    const contacts = await this.contactsService.findContactsByBirthday();
-
+  
+    const today = new Date();
+    const day = today.getDate();
+    const month = today.getMonth() + 1; 
+  
+    const contacts = await this.contactsService.findContactsByBirthday(day, month);
+  
     for (const contact of contacts) {
       this.logger.log(`Contact ${contact.name} is having a birthday!`);
       await this.notificationService.createBirthdayNotification(
@@ -25,9 +30,10 @@ export class BirthdayCheckService {
         `Hoy es el cumpleaños de ${contact.name}!`
       );
     }
-
+  
     if (contacts.length === 0) {
       this.logger.log('No birthdays today.');
     }
   }
+  
 }

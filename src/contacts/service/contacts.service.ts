@@ -1,20 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+// contacts.service.ts
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { ContactsRepository } from '../repository/contacts.repository';
-import { FilterContactsDto } from '../dto/filter-contacts.dto';
 import { CreateContactDto } from '../dto/create-contact.dto';
 import { UpdateContactDto } from '../dto/update-contact.dto';
 import { FavoriteContactDto } from '../dto/favorite-contact.dto';
-import { PrismaService } from '../../prisma/prisma.service';
-import { NotificationService } from 'src/notifications/service/notifications.service';
+import { FilterContactsDto } from '../dto/filter-contacts.dto';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
-import { S3Service } from 'src/common/services/s3.service';
-import { Contact } from '@prisma/client';
+import { NotificationService } from 'src/notifications/service/notifications.service';
+import { S3Service } from '../../common/services/s3.service';
 
 @Injectable()
 export class ContactsService {
   constructor(
     private readonly contactsRepo: ContactsRepository,
-    private readonly prisma: PrismaService, 
     private readonly notificationService: NotificationService,
     private readonly s3Service: S3Service,
   ) {}
@@ -69,13 +67,13 @@ export class ContactsService {
 
   async createContact(userId: string, dto: CreateContactDto) {
     const contact = await this.contactsRepo.createContact(userId, dto);
-  
+
     const today = new Date();
     const birthDate = new Date(dto.birthdate);
     const isBirthday =
       today.getMonth() === birthDate.getMonth() &&
       today.getDate() === birthDate.getDate();
-  
+
     if (isBirthday) {
       await this.notificationService.createBirthdayNotification(
         userId,
@@ -83,54 +81,50 @@ export class ContactsService {
         `🎉 Hoy es el cumpleaños de ${contact.name}!`
       );
     }
-   
-   await this.contactsRepo.createLog(contact.id, userId, 'CREATE');
+
     return contact;
-    
   }
-  
 
   async updateContact(userId: string, contactId: string, updateContactDto: UpdateContactDto) {
     const contact = await this.contactsRepo.findOneById(contactId, userId);
-    if (!contact) {
-      throw new NotFoundException('Contact not found');
+    if (!contact || contact.deletedAt) {
+      throw new NotFoundException('Contact not found or has been deleted');
     }
-    const updatedContact = await this.contactsRepo.updateContact(contactId, updateContactDto);
-    await this.contactsRepo.createLog(contactId, userId, 'UPDATE');
-    return  updatedContact
-    
 
+    return this.contactsRepo.updateContact(contactId, updateContactDto);
   }
 
   async markFavorite(userId: string, contactId: string, favoriteContactDto: FavoriteContactDto) {
     const contact = await this.contactsRepo.findOneById(contactId, userId);
-    if (!contact) {
-      throw new NotFoundException('Contact not found');
+    if (!contact || contact.deletedAt) {
+      throw new NotFoundException('Contact not found or has been deleted');
     }
 
-   const updated= await this.contactsRepo.updateContact(contactId, { is_favorite: favoriteContactDto.is_favorite });
-    await this.contactsRepo.createLog(
-      contactId,
-      userId,
-      favoriteContactDto.is_favorite ? 'MARK_FAVORITE' : 'UNMARK_FAVORITE',
-    );
+    const updated = await this.contactsRepo.updateContact(contactId, {
+      is_favorite: favoriteContactDto.is_favorite,
+    });
+
+    const logAction = favoriteContactDto.is_favorite ? 'MARK_FAVORITE' : 'UNMARK_FAVORITE';
+    await this.contactsRepo.createLog(contactId, userId, logAction);
+
     return updated;
   }
 
   async uploadAvatar(userId: string, contactId: string, file: Express.Multer.File) {
     const contact = await this.contactsRepo.findOneById(contactId, userId);
-    if (!contact) throw new NotFoundException('Contact not found');
+    
+    if (!contact || contact.deletedAt) {
+      throw new NotFoundException('Contact not found or has been deleted');
+    }
   
     const imageUrl = await this.s3Service.uploadFile(file);
   
-    const updated = await this.contactsRepo.updateContact(contactId, {
-      profile_image: imageUrl,
-    });
+    const updated = await this.contactsRepo.updateContact(contactId, { profile_image: imageUrl });
+  
     await this.contactsRepo.createLog(contactId, userId, 'AVATAR');
-
+  
     return updated;
   }
-  
   
 
   async restoreContact(userId: string, contactId: string) {
@@ -141,8 +135,6 @@ export class ContactsService {
 
     const restored = await this.contactsRepo.restoreContact(contactId);
     await this.contactsRepo.createLog(contactId, userId, 'RESTORE');
-    
-
     return restored;
   }
 
@@ -154,26 +146,13 @@ export class ContactsService {
 
     return this.contactsRepo.getLogs(contactId);
   }
-  async findContactsByBirthday(): Promise<Contact[]> {
-    const allContacts = await this.prisma.contact.findMany({
-      where: {
-        deletedAt: null, 
-      },
-    });
-  
-    const today = new Date();
-    const todayDay = today.getDate();
-    const todayMonth = today.getMonth() + 1; 
-  
-    return allContacts.filter((contact) => {
-      const birthdate = new Date(contact.birthdate);
-      return (
-        birthdate.getDate() === todayDay &&
-        birthdate.getMonth() + 1 === todayMonth 
-      );
-    });
+
+  async findContactsByBirthday(day: number, month: number) {
+    const start = new Date(`${new Date().getFullYear()}-${month}-${day}T00:00:00.000Z`);
+    const end = new Date(`${new Date().getFullYear()}-${month}-${day}T23:59:59.999Z`);
+
+    return this.contactsRepo.findByBirthdateRange(start, end);
   }
-   
 
   async deleteContact(userId: string, contactId: string) {
     const contact = await this.contactsRepo.findOneById(contactId, userId);
@@ -181,10 +160,8 @@ export class ContactsService {
       throw new NotFoundException('Contact not found');
     }
 
-   const contactDelete = await this.contactsRepo.softDeleteContact(contactId);
+    const deleted = await this.contactsRepo.softDeleteContact(contactId);
     await this.contactsRepo.createLog(contactId, userId, 'DELETE');
-
-
-    return  contactDelete;
+    return deleted;
   }
 }

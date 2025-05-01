@@ -19,24 +19,24 @@ export class AuthService {
 
   private async register(dto: RegisterAuthDto) {
     const userExists = await this.authRepo.findByEmail(dto.email);
-
     if (userExists) {
       throw new BadRequestException('Email already registered');
     }
-
+  
     const hashedPassword = await bcrypt.hash(dto.password, 10);
-
-    return this.authRepo.createUser({
+    const newUser = await this.authRepo.createUser({
       email: dto.email,
       password: hashedPassword,
       name: dto.name,
     });
+  
+    return newUser;
   }
+  
 
   async login(dto: LoginDto) {
     const user = await this.authRepo.findByEmail(dto.email);
 
-    console.log(user)
   
     if (!user) {
       throw new UnauthorizedException('User not exists');

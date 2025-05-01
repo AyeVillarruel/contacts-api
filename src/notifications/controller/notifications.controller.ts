@@ -15,7 +15,6 @@ export class NotificationController {
   @Get()
   @UseGuards(AuthGuard('jwt'))
   getUserNotifications(@User('userId') userId: string) {
-    console.log('userId', userId);
     return this.notificationService.getUserNotifications(userId);
   }
 

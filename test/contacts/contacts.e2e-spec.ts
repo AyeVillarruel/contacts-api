@@ -1,6 +1,9 @@
+import * as path from 'path';
+import * as fs from 'fs';
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import * as request from 'supertest';
+import request from 'supertest';
+
 import { AppModule } from '../../src/app.module';
 
 describe('Contacts (e2e)', () => {
@@ -19,22 +22,28 @@ describe('Contacts (e2e)', () => {
     app = moduleFixture.createNestApplication();
     await app.init();
 
-    // Registro
     await request(app.getHttpServer())
       .post('/auth/register')
       .send({ email, password, name: 'Contacto Tester' })
       .expect(201);
 
-    // Login
-    const res = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({ email, password })
-      .expect(200);
+      
 
-    accessToken = res.body.access_token;
-    if (!accessToken) throw new Error('Login failed: no token received');
+      let res;
+      for (let i = 0; i < 5; i++) {
+        res = await request(app.getHttpServer())
+          .post('/auth/login')
+          .send({ email, password });
+      
+        if (res.status === 200 && res.body.access_token) break;
+        await new Promise((resolve) => setTimeout(resolve, 500)); 
+      }
+      
+      expect(res.status).toBe(200);
+      accessToken = res.body.access_token;
+      expect(accessToken).toBeDefined();
+      
   });
-
   it('should create a contact', async () => {
     const res = await request(app.getHttpServer())
       .post('/contacts')
@@ -42,7 +51,7 @@ describe('Contacts (e2e)', () => {
       .send({
         name: 'Juan Contacto',
         email: 'juan@contacto.com',
-        birthdate: '1992-02-02',
+        birthdate: '1992-02-02T00:00:00.000Z',
         phone_personal: '123456789',
         company: 'Empresa Demo',
         city: 'Ciudad Test',
@@ -51,7 +60,9 @@ describe('Contacts (e2e)', () => {
       .expect(201);
 
     expect(res.body).toHaveProperty('id');
+    expect(res.body.name).toBe('Juan Contacto');
     contactId = res.body.id;
+
   });
 
   it('should get all contacts', async () => {
@@ -87,13 +98,14 @@ describe('Contacts (e2e)', () => {
   });
 
   it('should delete the contact', async () => {
+
     await request(app.getHttpServer())
       .delete(`/contacts/${contactId}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
   });
-
-  it('should not return deleted contact in get all', async () => {
+  
+ it('should not return deleted contact in get all', async () => {
     const res = await request(app.getHttpServer())
       .get('/contacts')
       .set('Authorization', `Bearer ${accessToken}`)
@@ -102,7 +114,7 @@ describe('Contacts (e2e)', () => {
     const deleted = res.body.data.find((c: any) => c.id === contactId);
     expect(deleted).toBeUndefined();
   });
-
+  
   afterAll(async () => {
     await app.close();
   });

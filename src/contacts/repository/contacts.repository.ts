@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateContactDto } from '../dto/create-contact.dto';
 import { UpdateContactDto } from '../dto/update-contact.dto';
@@ -64,6 +64,8 @@ export class ContactsRepository {
   }
 
   async updateContact(contactId: string, updateContactDto: Partial<UpdateContactDto>) {
+    const existing = await this.prisma.contact.findUnique({ where: { id: contactId } });
+    if (!existing) throw new NotFoundException('Contact not found for update');
    return await this.prisma.contact.update({
       where: { id: contactId },
       data: {
@@ -94,17 +96,26 @@ export class ContactsRepository {
     });
   }
 
-  async createLog(contactId: string, userId: string, action: 'CREATE' | 'UPDATE' | 'DELETE' | 'RESTORE' | 'AVATAR'| 'MARK_FAVORITE' | 'UNMARK_FAVORITE' | 'BIRTHDAY' | 'RESTORE') {
+  async createLog(
+    contactId: string,
+    userId: string,
+    action: 'CREATE' | 'UPDATE' | 'DELETE' | 'RESTORE' | 'AVATAR' | 'MARK_FAVORITE' | 'UNMARK_FAVORITE' | 'BIRTHDAY',
+  ) {
     return this.prisma.contactLog.create({
       data: {
-        contactId,
-        userId,
+        contact: { connect: { id: contactId } },
+        user: { connect: { id: userId } },
         action,
+        field: null,
+        oldValue: null,
+        newValue: null,
         timestamp: new Date(),
       },
     });
-  }  
-
+  }
+  
+  
+  
   async getLogs(contactId: string) {
     return this.prisma.contactLog.findMany({
       where: { contactId },
@@ -178,6 +189,19 @@ export class ContactsRepository {
       orderBy: { name: 'asc' },
     });
   }
+
+async findByBirthdateRange(start: Date, end: Date) {
+  return this.prisma.contact.findMany({
+    where: {
+      birthdate: {
+        gte: start,
+        lte: end,
+      },
+      deletedAt: null,
+    },
+  });
+}
+
 
   async countDeletedContacts(userId: string, filterDto: FilterContactsDto) {
     return this.prisma.contact.count({
