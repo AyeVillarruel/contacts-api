@@ -1,7 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ContactsService } from '../../service/contacts.service';
 import { ContactsRepository } from '../../repository/contacts.repository';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { NotificationService } from '../../../notifications/service/notifications.service';
+import { S3Service } from '../../../common/services/s3.service'; 
 
 describe('ContactsService', () => {
   let service: ContactsService;
@@ -16,9 +17,17 @@ describe('ContactsService', () => {
     deleteContact: jest.fn(),
   };
 
-const mockPrismaService = {};
+  const mockNotificationService = {
+    createNotification: jest.fn(),
+    markAllAsRead: jest.fn(),
+  };
 
-beforeEach(async () => {
+  const mockS3Service = {
+    uploadFile: jest.fn(),
+    deleteFile: jest.fn(),
+  };
+
+  beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ContactsService,
@@ -27,8 +36,12 @@ beforeEach(async () => {
           useValue: mockRepo,
         },
         {
-          provide: PrismaService, 
-          useValue: mockPrismaService,
+          provide: NotificationService,
+          useValue: mockNotificationService,
+        },
+        {
+          provide: S3Service,
+          useValue: mockS3Service,
         },
       ],
     }).compile();
@@ -46,7 +59,16 @@ beforeEach(async () => {
   });
 
   it('should create a contact', async () => {
-    const dto = { name: 'Test Contact', email: 'test@test.com', birthdate: '2000-01-01', phone_personal: '123456', company: 'Test Co', city: 'Rosario', province: 'Santa Fe' };
+    const dto = {
+      name: 'Test Contact',
+      email: 'test@test.com',
+      birthdate: '2000-01-01',
+      phone_personal: '123456',
+      company: 'Test Co',
+      city: 'Rosario',
+      province: 'Santa Fe',
+    };
+
     mockRepo.createContact.mockResolvedValue(dto);
 
     const result = await service.createContact('userId', dto);

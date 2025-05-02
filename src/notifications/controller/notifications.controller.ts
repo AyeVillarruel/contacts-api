@@ -1,6 +1,6 @@
 import { Controller, Delete, Get, Param, Patch, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
-import { User } from 'src/common/decorators/user.decorator';
+import { JwtAuthGuard } from '../../auth/guard/jwt-auth.guard';
+import { User } from '../../common/decorators/user.decorator';
 import { NotificationService } from '../service/notifications.service';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';

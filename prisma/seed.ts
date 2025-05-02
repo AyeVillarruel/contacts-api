@@ -15,7 +15,7 @@ async function main() {
 
   const passwordHash = await bcrypt.hash('123456', 10);
 
-  await prisma.user.createMany({
+   await prisma.user.createMany({
     data: [
       { email: 'demo@example.com', password: passwordHash, name: 'Demo User' },
       { email: 'lisa@example.com', password: passwordHash, name: 'Lisa Simpson' },
@@ -48,6 +48,7 @@ async function main() {
         city: 'Córdoba',
         province: 'Córdoba',
         profile_image: 'https://placekitten.com/200/200',
+        is_favorite: false,
         userId: users[0].id,
       },
       {
@@ -76,68 +77,57 @@ async function main() {
     ],
   });
 
-  
-  
   const allContacts = await prisma.contact.findMany({ where: { deletedAt: null } });
 
-await prisma.notification.create({
-    data: {
-      userId: users[0].id,
-      contactId: allContacts.find(c => c.name === 'aye')!.id,
-      message: '🎉 Notificación de prueba hardcodeada',
-      read: false,
-      deletedAt: null,
-      createdAt: new Date(),
-    },
-  });
+  const juanP = allContacts.find(c => c.name === 'Juan Pérez');
+  const bart = allContacts.find(c => c.name === 'Bart Simpson');
+  const pepper = allContacts.find(c => c.name === 'Pepper Potts');
+
   const logs = [
-    {
-      contactId: allContacts.find(c => c.name === 'Juan Pérez')!.id,
+    juanP && {
+      contactId: juanP.id,
       userId: users[0].id,
       action: 'UPDATE',
       field: 'name',
       oldValue: 'Juan Pérez',
       newValue: 'Juan Pedro',
     },
-    {
-      contactId: allContacts.find(c => c.name === 'Juan Pérez')!.id,
+    juanP && {
+      contactId: juanP.id,
       userId: users[0].id,
       action: 'UPDATE',
       field: 'city',
       oldValue: 'Buenos Aires',
       newValue: 'La Plata',
     },
-    {
-      contactId: allContacts.find(c => c.name === 'Bart Simpson')!.id,
+    bart && {
+      contactId: bart.id,
       userId: users[1].id,
       action: 'UPDATE',
       field: 'company',
       oldValue: 'Springfield Inc.',
       newValue: 'Duff Corp',
     },
-    {
-      contactId: allContacts.find(c => c.name === 'Pepper Potts')!.id,
+    pepper && {
+      contactId: pepper.id,
       userId: users[2].id,
       action: 'UPDATE',
       field: 'phone_personal',
       oldValue: '1166442288',
       newValue: '1100223344',
     },
-  ];
+  ].filter(Boolean); 
 
   for (const log of logs) {
     await prisma.contactLog.create({ data: log });
   }
 
-  logger.log('✅ Seed completed: Users, contacts, and logs created.');
+  logger.log('Seed completed: Users, contacts, and logs created.');
 }
-
-
-
 
 main()
   .catch((e) => {
-    logger.error('❌ Seed failed:', e);
+    logger.error('Seed failed:', e);
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());

@@ -1,15 +1,15 @@
-import * as path from 'path';
-import * as fs from 'fs';
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
-
 import { AppModule } from '../../src/app.module';
+import { PrismaClient } from '@prisma/client';
 
 describe('Contacts (e2e)', () => {
+  let contactId: string;
+  const prisma = new PrismaClient();
   let app: INestApplication;
   let accessToken: string;
-  let contactId: string;
+  let userId: string;
 
   const email = `contact_e2e_${Date.now()}@test.com`;
   const password = 'password123';
@@ -27,25 +27,24 @@ describe('Contacts (e2e)', () => {
       .send({ email, password, name: 'Contacto Tester' })
       .expect(201);
 
-      
+    let res;
+    for (let i = 0; i < 5; i++) {
+      res = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email, password });
 
-      let res;
-      for (let i = 0; i < 5; i++) {
-        res = await request(app.getHttpServer())
-          .post('/auth/login')
-          .send({ email, password });
-      
-        if (res.status === 200 && res.body.access_token) break;
-        await new Promise((resolve) => setTimeout(resolve, 500)); 
-      }
-      
-      expect(res.status).toBe(200);
-      accessToken = res.body.access_token;
-      expect(accessToken).toBeDefined();
-      
-  });
-  it('should create a contact', async () => {
-    const res = await request(app.getHttpServer())
+      if (res.status === 200 && res.body.access_token) break;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+
+    accessToken = res.body.access_token;
+    expect(accessToken).toBeDefined();
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    expect(user).toBeDefined();
+    userId = user.id;
+
+    const createRes = await request(app.getHttpServer())
       .post('/contacts')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
@@ -56,13 +55,11 @@ describe('Contacts (e2e)', () => {
         company: 'Empresa Demo',
         city: 'Ciudad Test',
         province: 'Provincia Test',
+        
       })
       .expect(201);
 
-    expect(res.body).toHaveProperty('id');
-    expect(res.body.name).toBe('Juan Contacto');
-    contactId = res.body.id;
-
+    contactId = createRes.body.id;
   });
 
   it('should get all contacts', async () => {
@@ -76,12 +73,18 @@ describe('Contacts (e2e)', () => {
     expect(res.body.data.length).toBeGreaterThan(0);
   });
 
+
   it('should mark the contact as favorite', async () => {
-    await request(app.getHttpServer())
+    console.log(contactId, 'contactId');
+    const res = await request(app.getHttpServer())
       .patch(`/contacts/${contactId}/favorite`)
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ is_favorite: true })
       .expect(200);
+
+    expect(res.body).toHaveProperty('id');
+    expect(res.body.id).toBe(contactId);
+    expect(res.body.is_favorite).toBe(true);
   });
 
   it('should get favorite contacts with pagination', async () => {
@@ -96,16 +99,16 @@ describe('Contacts (e2e)', () => {
     expect(res.body).toHaveProperty('limit');
     expect(res.body).toHaveProperty('offset');
   });
+  console.log(contactId, 'contactId');
 
   it('should delete the contact', async () => {
-
     await request(app.getHttpServer())
       .delete(`/contacts/${contactId}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
   });
-  
- it('should not return deleted contact in get all', async () => {
+
+  it('should not return deleted contact in get all', async () => {
     const res = await request(app.getHttpServer())
       .get('/contacts')
       .set('Authorization', `Bearer ${accessToken}`)
@@ -114,8 +117,17 @@ describe('Contacts (e2e)', () => {
     const deleted = res.body.data.find((c: any) => c.id === contactId);
     expect(deleted).toBeUndefined();
   });
-  
+
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
+
+    await prisma.$transaction([
+      prisma.contactLog.deleteMany({}),
+      prisma.notification.deleteMany({}),
+      prisma.contact.deleteMany({}),
+      prisma.user.deleteMany({}),
+    ]);
   });
 });

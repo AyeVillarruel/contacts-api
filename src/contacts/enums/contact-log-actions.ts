@@ -1,0 +1,10 @@
+export enum ContactLogAction {
+    CREATE = 'CREATE',
+    UPDATE = 'UPDATE',
+    DELETE = 'DELETE',
+    RESTORE = 'RESTORE',
+    AVATAR = 'AVATAR',
+    MARK_FAVORITE = 'MARK_FAVORITE',
+    UNMARK_FAVORITE = 'UNMARK_FAVORITE',
+    BIRTHDAY = 'BIRTHDAY',
+  }

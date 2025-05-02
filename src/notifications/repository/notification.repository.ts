@@ -1,20 +1,26 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { NotificationType } from 'aws-sdk/clients/budgets';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class NotificationRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createBirthdayNotification(userId: string, contactId: string, message: string) {
+  async createNotification(
+    userId: string,
+    contactId: string,
+    type: NotificationType,
+    message: string,
+  ) {
     return this.prisma.notification.create({
       data: {
         userId,
         contactId,
+        type, 
         message,
       },
     });
   }
-  
 
   async getUserNotifications(userId: string) {
     return this.prisma.notification.findMany({
@@ -33,9 +39,7 @@ export class NotificationRepository {
   async markAllAsRead(userId: string) {
     return this.prisma.notification.updateMany({
       where: {
-        contact: {
-          userId,
-        },
+        userId,
         read: false,
       },
       data: {
@@ -43,6 +47,7 @@ export class NotificationRepository {
       },
     });
   }
+  
 
   async deleteNotification(notificationId: string, userId: string) {
     return this.prisma.notification.updateMany({

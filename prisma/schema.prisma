@@ -41,8 +41,8 @@ model ContactLog {
   id        String   @id @default(uuid())
   action    String
   field     String?
-  oldValue  String?
-  newValue  String?
+  oldValue  Json?
+  newValue  Json?
   timestamp DateTime @default(now())
   contactId String
   contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
@@ -51,13 +51,15 @@ model ContactLog {
 }
 
 model Notification {
-  id        String    @id @default(uuid())
-  message   String
-  read      Boolean   @default(false)
-  deletedAt DateTime?
-  createdAt DateTime  @default(now())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id])
-  contactId String
-  contact   Contact   @relation(fields: [contactId], references: [id])
+  id         String   @id @default(uuid())
+  userId     String
+  contactId  String
+  message    String
+  type       String  
+  read       Boolean  @default(false)
+  deletedAt  DateTime? 
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+  contact    Contact  @relation(fields: [contactId], references: [id])
 }
+

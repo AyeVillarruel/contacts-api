@@ -20,14 +20,19 @@ Este proyecto es una API RESTful construida con **NestJS**, **Prisma** y **MySQL
 
 ```
 src/
-├── auth/               # Módulo de autenticación JWT
-├── common/             # Decoradores, DTOs, pipes, logger, servicios compartidos
-├── contacts/           # CRUD de contactos, lógica, subida de avatar, logs
-├── notifications/      # CRUD y lectura de notificaciones, sistema de alertas
-├── prisma/             # Prisma Service y acceso a la base de datos
-├── scheduler/          # Cronjob para cumpleaños diarios
-├── main.ts             # Punto de entrada de la aplicación
-```
+├── auth/
+├── contacts/
+│   ├── controller/
+│   ├── service/
+│   ├── dto/
+│   └── repository/
+├── notifications/
+├── users/
+├── common/
+│   ├── filters/
+│   └── decorators/
+├── prisma/
+└── main.ts
 
 ---
 
@@ -43,7 +48,7 @@ src/
 
 1. **Clonar el proyecto:**
 ```bash
-git clone https://github.com/tu-usuario/contacts-api.git
+git clone https://github.com/AyeVillaruel/contacts-api.git
 cd contacts-api
 ```
 

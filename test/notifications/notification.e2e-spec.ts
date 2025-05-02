@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { NotificationType } from 'src/notifications/enum/notification-type.enum';
 
 let app: INestApplication;
 let prisma: PrismaService;
@@ -69,6 +70,7 @@ describe('NotificationController (e2e)', () => {
     const notification = await prisma.notification.create({
       data: {
         message: '¡Feliz cumpleaños!',
+        type: NotificationType.BIRTHDAY, 
         contact: {
           connect: { id: contactId },
         },
@@ -77,6 +79,7 @@ describe('NotificationController (e2e)', () => {
         },
       },
     });
+    
 
     notificationId = notification.id;
   });

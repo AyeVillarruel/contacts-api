@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateContactDto } from '../dto/create-contact.dto';
 import { UpdateContactDto } from '../dto/update-contact.dto';
 import { FilterContactsDto } from '../dto/filter-contacts.dto';
+import { ContactLogAction } from '../enums/contact-log-actions';
 
 @Injectable()
 export class ContactsRepository {
@@ -99,20 +100,22 @@ export class ContactsRepository {
   async createLog(
     contactId: string,
     userId: string,
-    action: 'CREATE' | 'UPDATE' | 'DELETE' | 'RESTORE' | 'AVATAR' | 'MARK_FAVORITE' | 'UNMARK_FAVORITE' | 'BIRTHDAY',
+    action: ContactLogAction,
+    extra?: { field?: string; oldValue?: any | null; newValue?: any | null },
   ) {
     return this.prisma.contactLog.create({
       data: {
         contact: { connect: { id: contactId } },
         user: { connect: { id: userId } },
         action,
-        field: null,
-        oldValue: null,
-        newValue: null,
+        field: extra?.field ?? null,
+        oldValue: extra?.oldValue ?? null,
+        newValue: extra?.newValue ?? null,
         timestamp: new Date(),
       },
     });
   }
+  
   
   
   

@@ -5,9 +5,11 @@ import { CreateContactDto } from '../dto/create-contact.dto';
 import { UpdateContactDto } from '../dto/update-contact.dto';
 import { FavoriteContactDto } from '../dto/favorite-contact.dto';
 import { FilterContactsDto } from '../dto/filter-contacts.dto';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
-import { NotificationService } from 'src/notifications/service/notifications.service';
+import { PaginationDto } from '../../common/dto/pagination.dto';
+import { NotificationService } from '../../notifications/service/notifications.service';
 import { S3Service } from '../../common/services/s3.service';
+import { ContactLogAction } from '../enums/contact-log-actions';
+import { NotificationType } from '../../notifications/enum/notification-type.enum';
 
 @Injectable()
 export class ContactsService {
@@ -72,15 +74,24 @@ export class ContactsService {
     const birthDate = new Date(dto.birthdate);
     const isBirthday =
       today.getMonth() === birthDate.getMonth() &&
-      today.getDate() === birthDate.getDate();
-
+      today.getDate() + 1=== birthDate.getDate();
+    
     if (isBirthday) {
-      await this.notificationService.createBirthdayNotification(
+      await this.notificationService.createNotification(
         userId,
         contact.id,
-        `🎉 Hoy es el cumpleaños de ${contact.name}!`
+        NotificationType.BIRTHDAY,
+        `Hoy es el cumpleaños de ${contact.name}!`
       );
     }
+
+    await this.notificationService.createNotification(
+      userId,
+      contact.id,
+      NotificationType.CREATE,
+      'Contacto creado exitosamente',
+    );
+    
 
     return contact;
   }
@@ -91,7 +102,22 @@ export class ContactsService {
       throw new NotFoundException('Contact not found or has been deleted');
     }
 
-    return this.contactsRepo.updateContact(contactId, updateContactDto);
+    const updated = await this.contactsRepo.updateContact(contactId, updateContactDto);
+
+    await this.contactsRepo.createLog(contactId, userId, ContactLogAction.UPDATE, {
+      field: Object.keys(updateContactDto)[0],
+      oldValue: contact[Object.keys(updateContactDto)[0]],
+      newValue: updated[Object.keys(updateContactDto)[0]],
+    });
+
+    await this.notificationService.createNotification(
+      userId,
+      contactId,
+      NotificationType.UPDATE,
+      'Contacto actualizado exitosamente',
+    );
+
+    return updated;
   }
 
   async markFavorite(userId: string, contactId: string, favoriteContactDto: FavoriteContactDto) {
@@ -104,8 +130,19 @@ export class ContactsService {
       is_favorite: favoriteContactDto.is_favorite,
     });
 
-    const logAction = favoriteContactDto.is_favorite ? 'MARK_FAVORITE' : 'UNMARK_FAVORITE';
-    await this.contactsRepo.createLog(contactId, userId, logAction);
+    const logAction = favoriteContactDto.is_favorite ? ContactLogAction.MARK_FAVORITE : ContactLogAction.UNMARK_FAVORITE;
+    await this.contactsRepo.createLog(contactId, userId, logAction, {
+      field: 'is_favorite',
+      oldValue: contact.is_favorite,
+      newValue: updated.is_favorite,
+    });
+    await this.notificationService.createNotification(
+      userId,
+      contact.id,
+       NotificationType.FAVORITE,
+      `Marcaste a ${contact.name} como favorito`,
+    );
+    
 
     return updated;
   }
@@ -121,7 +158,11 @@ export class ContactsService {
   
     const updated = await this.contactsRepo.updateContact(contactId, { profile_image: imageUrl });
   
-    await this.contactsRepo.createLog(contactId, userId, 'AVATAR');
+    await this.contactsRepo.createLog(contactId, userId, ContactLogAction.AVATAR, {
+      field: 'profile_image',
+      oldValue: contact.profile_image,
+      newValue: updated.profile_image,
+    });
   
     return updated;
   }
@@ -134,7 +175,11 @@ export class ContactsService {
     }
 
     const restored = await this.contactsRepo.restoreContact(contactId);
-    await this.contactsRepo.createLog(contactId, userId, 'RESTORE');
+    await this.contactsRepo.createLog(contactId, userId, ContactLogAction.RESTORE, {
+      field: 'deletedAt',
+      oldValue: contact.deletedAt,
+      newValue: restored.deletedAt,
+    });
     return restored;
   }
 
@@ -161,7 +206,11 @@ export class ContactsService {
     }
 
     const deleted = await this.contactsRepo.softDeleteContact(contactId);
-    await this.contactsRepo.createLog(contactId, userId, 'DELETE');
+    await this.contactsRepo.createLog(contactId, userId, ContactLogAction.DELETE, {
+      field: 'deletedAt',
+      oldValue: contact.deletedAt,
+      newValue: deleted.deletedAt,
+    });
     return deleted;
   }
 }

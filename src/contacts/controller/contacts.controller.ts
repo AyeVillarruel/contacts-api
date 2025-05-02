@@ -19,11 +19,10 @@ import {
   import { FavoriteContactDto } from '../dto/favorite-contact.dto';
   import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOkResponse, ApiTags } from '@nestjs/swagger';
   import { FileInterceptor } from '@nestjs/platform-express';
-  import { multerConfig } from '../../common/config/multer.config';
-import { User } from 'src/common/decorators/user.decorator';
-import { AuthGuard } from '@nestjs/passport';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
-import { UploadAvatarDto } from '../dto/upload-avatar.dto';
+  import { User } from '../../common/decorators/user.decorator';
+  import { AuthGuard } from '@nestjs/passport';
+  import { PaginationDto } from '../../common/dto/pagination.dto';
+  import { UploadAvatarDto } from '../dto/upload-avatar.dto';
   
   @ApiBearerAuth()
   @ApiTags('Contacts')

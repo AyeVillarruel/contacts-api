@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ContactsService } from '../service/contacts.service';
-import { NotificationService } from 'src/notifications/service/notifications.service';
+import { NotificationService } from '../../notifications/service/notifications.service';
+import { NotificationType } from '../../notifications/enum/notification-type.enum';
 
 @Injectable()
 export class BirthdayCheckService {
@@ -14,7 +15,7 @@ export class BirthdayCheckService {
 
   @Cron(CronExpression.EVERY_DAY_AT_9AM)
   async handleBirthdayCheck() {
-    this.logger.log('🔔 Running birthday check...');
+    this.logger.log('Running birthday check...');
   
     const today = new Date();
     const day = today.getDate();
@@ -24,9 +25,10 @@ export class BirthdayCheckService {
   
     for (const contact of contacts) {
       this.logger.log(`Contact ${contact.name} is having a birthday!`);
-      await this.notificationService.createBirthdayNotification(
+      await this.notificationService.createNotification(
         contact.userId,
         contact.id,
+        NotificationType.BIRTHDAY,
         `Hoy es el cumpleaños de ${contact.name}!`
       );
     }
